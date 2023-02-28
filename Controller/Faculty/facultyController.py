@@ -112,5 +112,10 @@ def addFaculty(db: _orm.Session, firstName:str, email:str, fullName: str):
     return None
     
 
-def findfacultyByFullName(db: _orm.Session, Name: str):
-    return db.query(_models.Faculty).filter(_models.Faculty.Name.like(Name)).first()
+def findfacultyByFullName(db: _orm.Session, Name: str, Email: str):
+    user = db.query(_models.Faculty).filter(_models.Faculty.Name.like(Name)).first()
+    if user:
+        if user.Email is None:
+           user =  db.query(_models.Faculty).filter(_models.Faculty.Name.like(Name)).update({_models.Faculty.Email: Email}, synchronize_session=False)
+           db.commit()
+    return user

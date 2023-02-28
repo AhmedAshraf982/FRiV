@@ -62,77 +62,85 @@ def getAllFaculty(db: _orm.Session=_fastapi.Depends(facultyController.get_db)):
 
 @app.get("/summary/faculty/{date}")
 def getFacultySummary(date: str):
-    print(date)
     return {"data":facultyController.get_faculty_info(date)}
 
 
 @app.post("/add/timetable")
 def addTimetable(file: _fastapi.UploadFile = _fastapi.File(),db: _orm.Session=_fastapi.Depends(facultyController.get_db),db1: _orm.Session=_fastapi.Depends(venueController.get_db),db2: _orm.Session=_fastapi.Depends(slotController.get_db),db3: _orm.Session=_fastapi.Depends(coursesController.get_db)):
+    try:
+        ext = file.filename.split(".")[1]
+
+        with open(f"./data/timetable.{ext}", "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+        timetableController.extract_data(f"./data/timetable.{ext}", db=db, db1=db1, db2=db2, db3=db3)
+
+        os.remove(f"./data/timetable.{ext}")
+
+        return {
+            "status": True,
+            "message": "Timetable added successfully"
+        }
+    except Exception as e:
+        raise _fastapi.HTTPException(
+            status_code = 400, detail=str(e)
+        )
+
+def addFacultyData(db: _orm.Session, firstName: str,lastName:str,email: str, path:str):
+    user = facultyController.findfacultyByFullName(db=db, Name=firstName, Email=email)
+    if user:    
+        return { 
+            "status" : False,
+            "message":"Faculty is already available"
+        }
     
-    ext = file.filename.split(".")[1]
-
-    with open(f"./data/timetable.{ext}", "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-
-    timetableController.extract_data(f"./data/timetable.{ext}", db=db, db1=db1, db2=db2, db3=db3)
-
-    os.remove(f"./data/timetable.{ext}")
-
-    return {
-        "status": True,
-        "message": "Timetable added successfully"
-    }
+    res = train(path, Name=firstName)
+    os.remove(path)
+    
+    if len(res) == 1:
+        facultyController.addFaculty(db=db, firstName=firstName, fullName=firstName+" "+lastName, email=email)
+        return {
+            "status": True,
+            "message": "Faculty added successfully"
+        }
+    else:
+        return {
+            "status": False,
+            "message": res[1]
+        }
 
 @app.post("/add/faculty")
 def addFaculty(db: _orm.Session=_fastapi.Depends(facultyController.get_db), file: _fastapi.UploadFile = _fastapi.File(), firstName: str = _fastapi.Form(), email: str = _fastapi.Form(), lastName: str = _fastapi.Form()):
-        user = facultyController.findfacultyByFullName(db=db, Name=firstName)
-        if user:    
-            return { 
-                "status" : False,
-                "message":"Faculty is already available"
-            }
         ext = file.filename.split(".")[1]
         with open(f"./data/temp.{ext}", "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
+        path = f"./data/temp.{ext}"
+        return addFacultyData(db=db, firstName=firstName, lastName=lastName,email=email,path=path)
 
-        res = train(f"./data/temp.{ext}", Name=firstName)
-        os.remove(f"./data/temp.{ext}")
-        
-        if len(res) == 1:
-            facultyController.addFaculty(db=db, firstName=firstName, fullName=firstName+" "+lastName, email=email)
-            return {
-                "status": True,
-                "message": "Faculty added successfully"
-            }
-        else:
-            return {
-                "status": False,
-                "message": res[1]
-            }
+
 
 @app.post("/add/faculty/files")
-async def upload_File(file: _fastapi.UploadFile = _fastapi.File()):
+async def upload_File(db: _orm.Session=_fastapi.Depends(facultyController.get_db), file: _fastapi.UploadFile = _fastapi.File()):
     ext = file.filename.split(".")[1]
 
     with open(f"./data/facultyData.{ext}", "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
     df = pd.read_csv(f"./data/facultyData.{ext}")
-    for i in df["PICTURE"]:
-        filename = i.split("\\")[-1]
-        with open(i, 'rb') as ifile:
-            with open(f"./data/{filename}", 'wb') as ofile:
+    res = None
+    for _, row in df.iterrows():
+        filename = row["Picture"].split("\\")[-1]
+        path = f"./data/{filename}"
+        with open(row["Picture"], 'rb') as ifile:
+            with open(path, 'wb') as ofile:
                 data = ifile.read(1024 * 1024)
                 while data:
                     ofile.write(data)
                     data = ifile.read(1024 * 1024)
-    os.remove(f"./data/facultyData.{ext}")
-    return {
-            "status": True,
-            "message": "Faculty added successfully"
-        }
-
-
+        res = addFacultyData(db=db, firstName=row["FirstName"], lastName=row["LastName"],email=row["Email"],path=path)
+        if res["status"] == False:
+            return res
+    return res
 
 @app.post("/files")
 async def create_file(file: _fastapi.UploadFile = _fastapi.File(), starttime: str = _fastapi.Form(), venue: str = _fastapi.Form(), day: str = _fastapi.Form(), db: _orm.Session=_fastapi.Depends(facultyController.get_db)):
@@ -144,10 +152,7 @@ async def create_file(file: _fastapi.UploadFile = _fastapi.File(), starttime: st
 
         fps = int(trim("./data/destination.mp4"))
         
-      
-
         facultyName,endtime = facultyController.get_faculty_name(venue,starttime,day)
-        
 
         if facultyName is None:
             return {"status": False,
