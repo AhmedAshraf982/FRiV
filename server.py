@@ -139,7 +139,8 @@ async def upload_File(db: _orm.Session=_fastapi.Depends(facultyController.get_db
                     data = ifile.read(1024 * 1024)
         res = addFacultyData(db=db, firstName=row["FirstName"], lastName=row["LastName"],email=row["Email"],path=path)
         if res["status"] == False:
-            return res
+            break
+    os.remove(f"./data/facultyData.{ext}")
     return res
 
 @app.post("/files")
