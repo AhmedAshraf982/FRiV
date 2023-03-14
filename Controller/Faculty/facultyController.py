@@ -99,7 +99,7 @@ def get_faculty_info(date: str):
     return data
 
 def addFaculty(db: _orm.Session, firstName:str, email:str, fullName: str):
-    if not findfacultyByFullName(db=db,Name=firstName):
+    if not findfacultyByFullName(db=db,Name=firstName, Email=None):
         details = _models.Faculty(
             Name=firstName,
             Email=email,

@@ -30,7 +30,7 @@ app.add_middleware(
 
 @app.get("/get/all/slots", response_model=List[_slotSchemas.Slot])
 def getAllSlots(db: _orm.Session=_fastapi.Depends(slotController.get_db)):
-    try:
+    try:    
         slots = slotController.get_all_Slot(db=db)
         return slots
     except Exception as e:
@@ -62,7 +62,13 @@ def getAllFaculty(db: _orm.Session=_fastapi.Depends(facultyController.get_db)):
 
 @app.get("/summary/faculty/{date}")
 def getFacultySummary(date: str):
-    return {"data":facultyController.get_faculty_info(date)}
+    try:
+        
+        return {"data":facultyController.get_faculty_info(date)}
+    except Exception as e:
+        raise _fastapi.HTTPException(
+            status_code = 400, detail=str(e)
+        )
 
 
 @app.post("/add/timetable")
@@ -88,17 +94,17 @@ def addTimetable(file: _fastapi.UploadFile = _fastapi.File(),db: _orm.Session=_f
 
 def addFacultyData(db: _orm.Session, firstName: str,lastName:str,email: str, path:str):
     user = facultyController.findfacultyByFullName(db=db, Name=firstName, Email=email)
-    if user:    
-        return { 
-            "status" : False,
-            "message":"Faculty is already available"
-        }
+    # if user:   
+    #     return { 
+    #         "status" : False,
+    #         "message":"Faculty is already available"
+    #     }
     
     res = train(path, Name=firstName)
     os.remove(path)
     
     if len(res) == 1:
-        facultyController.addFaculty(db=db, firstName=firstName, fullName=firstName+" "+lastName, email=email)
+        #facultyController.addFaculty(db=db, firstName=firstName, fullName=firstName+" "+lastName, email=email)
         return {
             "status": True,
             "message": "Faculty added successfully"
@@ -145,79 +151,84 @@ async def upload_File(db: _orm.Session=_fastapi.Depends(facultyController.get_db
 
 @app.post("/files")
 async def create_file(file: _fastapi.UploadFile = _fastapi.File(), starttime: str = _fastapi.Form(), venue: str = _fastapi.Form(), day: str = _fastapi.Form(), db: _orm.Session=_fastapi.Depends(facultyController.get_db)):
-        
-        ext = file.filename.split(".")[1]
-        
-        with open(f"./data/destination.{ext}", "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+        try:
+            facultyName,endtime = facultyController.get_faculty_name(venue,starttime,day)
 
-        fps = int(trim("./data/destination.mp4"))
-        
-        facultyName,endtime = facultyController.get_faculty_name(venue,starttime,day)
+            if facultyName is None:
+                return {"status": False,
+                        "message":"No Faculty Class on this venue and time"
+                    }
 
-        if facultyName is None:
-            return {"status": False,
-                    "message":"No Faculty Class on this venue and time"
-                }
-
-        facultyId = facultyController.get_faculty_id(facultyName)
-
-        venueId = venueController.get_venue_id(db=db, name=venue)[0]
-
-        data = run(facultyName, fps)
-
-        if None in data:
-            return {
-                "status": False,
-                "message":"Teacher is not present in the class"
-            }
-        _, minutes = data
-        time_object = time.strptime(starttime, '%H:%M')
-        th = time_object.tm_hour
-        tm = time_object.tm_min
-
-        tm = tm + int(minutes)
-        if tm > 59:
-            if th == 12:
-                th = 1
-            else:
-                th += 1
-            tm = tm - 60
-        checkTim = str(th)+":"+str(tm)
-
-        end_time = time.strptime(endtime, '%H:%M')
-        eth = end_time.tm_hour
-        etm = end_time.tm_min 
-
-
-        end_data = last(facultyName, fps)
-        if None in end_data:
-            etm = etm - 10
-            if etm == 0:
-                if eth == 12:
-                    eth = 11
-                else:
-                    eth -= 1
-                etm = etm - 60
-        else:
-            _, end_minutes = end_data
+            ext = file.filename.split(".")[1]
             
-            etm = etm - int(end_minutes)
-            if etm == 0:
-                if eth == 12:
-                    eth = 11
+            with open(f"./data/destination.{ext}", "wb") as buffer:
+                shutil.copyfileobj(file.file, buffer)
+
+            fps = int(trim("./data/destination.mp4"))
+            
+            facultyId = facultyController.get_faculty_id(facultyName)
+
+            venueId = venueController.get_venue_id(db=db, name=venue)[0]
+
+            data = run(facultyName, fps)
+
+            if None in data:
+                return {
+                    "status": False,
+                    "message":"Teacher is not present in the class"
+                }
+            _, minutes = data
+            time_object = time.strptime(starttime, '%H:%M')
+            th = time_object.tm_hour
+            tm = time_object.tm_min
+
+            tm = tm + int(minutes)
+            if tm > 59:
+                if th == 12:
+                    th = 1
                 else:
-                    eth -= 1
-                etm = etm - 60
-        
-        checkOutTim = str(eth)+":"+str(etm)
+                    th += 1
+                tm = tm - 60
+            checkTim = str(th)+":"+str(tm)
 
-        facultyController.add_faculty_data(db=db, facultyId=facultyId, checkTim=checkTim, checkOutTime=checkOutTim, day=day,venueId=venueId,time=f"{starttime}-{endtime}")
+            end_time = time.strptime(endtime, '%H:%M')
+            eth = end_time.tm_hour
+            etm = end_time.tm_min 
 
-        return {
-            "status": True,
-            "message": "Processing Completed",
-            "name": facultyName,
-            "check-in": checkTim,
-            "check-out": checkOutTim,
-        }
+
+            end_data = last(facultyName, fps)
+            if None in end_data:
+                etm = etm - 10
+                if etm == 0:
+                    if eth == 12:
+                        eth = 11
+                    else:
+                        eth -= 1
+                    etm = etm - 60
+            else:
+                _, end_minutes = end_data
+                
+                etm = etm - int(end_minutes)
+                if etm == 0:
+                    if eth == 12:
+                        eth = 11
+                    else:
+                        eth -= 1
+                    etm = etm - 60
+            
+            checkOutTim = str(eth)+":"+str(etm)
+
+            facultyController.add_faculty_data(db=db, facultyId=facultyId, checkTim=checkTim, checkOutTime=checkOutTim, day=day,venueId=venueId,time=f"{starttime}-{endtime}")
+
+            return {
+                "status": True,
+                "message": "Processing Completed",
+                "name": facultyName,
+                "check-in": checkTim,
+                "check-out": checkOutTim,
+            }
+        except Exception as e:
+            raise _fastapi.HTTPException(
+                status_code = 400, detail=str(e)
+            )
+
