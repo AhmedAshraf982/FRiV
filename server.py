@@ -94,17 +94,17 @@ def addTimetable(file: _fastapi.UploadFile = _fastapi.File(),db: _orm.Session=_f
 
 def addFacultyData(db: _orm.Session, firstName: str,lastName:str,email: str, path:str):
     user = facultyController.findfacultyByFullName(db=db, Name=firstName, Email=email)
-    # if user:   
-    #     return { 
-    #         "status" : False,
-    #         "message":"Faculty is already available"
-    #     }
+    if user:   
+        return { 
+            "status" : False,
+            "message":"Faculty is already available"
+        }
     
     res = train(path, Name=firstName)
     os.remove(path)
     
     if len(res) == 1:
-        #facultyController.addFaculty(db=db, firstName=firstName, fullName=firstName+" "+lastName, email=email)
+        facultyController.addFaculty(db=db, firstName=firstName, fullName=firstName+" "+lastName, email=email)
         return {
             "status": True,
             "message": "Faculty added successfully"
