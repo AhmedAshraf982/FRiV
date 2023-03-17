@@ -1,7 +1,7 @@
 import fastapi as _fastapi
 import shutil
 from typing import List
-from video_editor import trim
+from video_editor import trim, get_duration
 from fastapi.middleware.cors import CORSMiddleware
 from model.vggface import *
 import sqlalchemy.orm as _orm 
@@ -18,7 +18,7 @@ import time
 import os
 
 app = _fastapi.FastAPI()
-
+faceRecognitionModel = FaceRecognition()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=['*'],
@@ -93,6 +93,7 @@ def addTimetable(file: _fastapi.UploadFile = _fastapi.File(),db: _orm.Session=_f
         )
 
 def addFacultyData(db: _orm.Session, firstName: str,lastName:str,email: str, path:str):
+    
     user = facultyController.findfacultyByFullName(db=db, Name=firstName, Email=email)
     if user:   
         return { 
@@ -100,7 +101,7 @@ def addFacultyData(db: _orm.Session, firstName: str,lastName:str,email: str, pat
             "message":"Faculty is already available"
         }
     
-    res = train(path, Name=firstName)
+    res =  faceRecognitionModel.train(path, Name=firstName)
     os.remove(path)
     
     if len(res) == 1:
@@ -152,6 +153,7 @@ async def upload_File(db: _orm.Session=_fastapi.Depends(facultyController.get_db
 @app.post("/files")
 async def create_file(file: _fastapi.UploadFile = _fastapi.File(), starttime: str = _fastapi.Form(), venue: str = _fastapi.Form(), day: str = _fastapi.Form(), db: _orm.Session=_fastapi.Depends(facultyController.get_db)):
         try:
+            print(venue, day, starttime)
             facultyName,endtime = facultyController.get_faculty_name(venue,starttime,day)
 
             if facultyName is None:
@@ -167,11 +169,11 @@ async def create_file(file: _fastapi.UploadFile = _fastapi.File(), starttime: st
             fps = int(trim("./data/destination.mp4"))
             
             facultyId = facultyController.get_faculty_id(facultyName)
-
+            
             venueId = venueController.get_venue_id(db=db, name=venue)[0]
 
-            data = run(facultyName, fps)
-
+            duration, _ = get_duration("./data/start.mp4")
+            data = faceRecognitionModel.run(facultyName, fps, duration)
             if None in data:
                 return {
                     "status": False,
@@ -189,6 +191,7 @@ async def create_file(file: _fastapi.UploadFile = _fastapi.File(), starttime: st
                 else:
                     th += 1
                 tm = tm - 60
+        
             checkTim = str(th)+":"+str(tm)
 
             end_time = time.strptime(endtime, '%H:%M')
@@ -196,7 +199,7 @@ async def create_file(file: _fastapi.UploadFile = _fastapi.File(), starttime: st
             etm = end_time.tm_min 
 
 
-            end_data = last(facultyName, fps)
+            end_data = faceRecognitionModel.last(facultyName, fps)
             if None in end_data:
                 etm = etm - 10
                 if etm == 0:

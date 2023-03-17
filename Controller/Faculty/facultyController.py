@@ -68,7 +68,8 @@ def get_faculty_name(venueName: str, startTime: str, Day: str):
     verifyName = None
     endTime = None
     day = dt.datetime.strptime(Day, "%d-%b-%Y")
-    day = dt.datetime.strftime(day, "%A")
+    day = dt.datetime.strftime(day, "%A").upper()
+    print(day)
     
     with _connect.engine.connect() as con:
         rs = con.execute(f"SELECT f.Name, s.Day, sl.StartTime, sl.EndTime, v.VenueName\
