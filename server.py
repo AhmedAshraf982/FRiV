@@ -173,13 +173,21 @@ async def create_file(file: _fastapi.UploadFile = _fastapi.File(), starttime: st
             venueId = venueController.get_venue_id(db=db, name=venue)[0]
 
             duration, _ = get_duration("./data/start.mp4")
+            
             data = faceRecognitionModel.run(facultyName, fps, duration)
-            if None in data:
+            if data is None:
                 return {
                     "status": False,
                     "message":"Teacher is not present in the class"
                 }
+            
+            if not isinstance(data, list) and data.find("Faculty") == 0:
+                return {
+                    "status":"False",
+                    "message": data
+                }
             _, minutes = data
+
             time_object = time.strptime(starttime, '%H:%M')
             th = time_object.tm_hour
             tm = time_object.tm_min
@@ -191,8 +199,17 @@ async def create_file(file: _fastapi.UploadFile = _fastapi.File(), starttime: st
                 else:
                     th += 1
                 tm = tm - 60
-        
-            checkTim = str(th)+":"+str(tm)
+
+            hr = str(th)
+            min = str(tm)
+            if len(str(th)) < 2:
+                hr = str(th).rjust(2,'0')
+            if len(str(tm)) < 2:
+                min = str(tm).rjust(2,'0') 
+             
+            checkTim = hr+":"+min
+            
+
 
             end_time = time.strptime(endtime, '%H:%M')
             eth = end_time.tm_hour
@@ -219,7 +236,15 @@ async def create_file(file: _fastapi.UploadFile = _fastapi.File(), starttime: st
                         eth -= 1
                     etm = etm - 60
             
-            checkOutTim = str(eth)+":"+str(etm)
+            hr = str(eth)
+            min = str(etm)
+            if len(str(eth)) < 2:
+                hr = str(eth).rjust(2,'0')
+            if len(str(etm)) < 2:
+                min = str(etm).rjust(2,'0')
+
+
+            checkOutTim = hr+":"+min
 
             facultyController.add_faculty_data(db=db, facultyId=facultyId, checkTim=checkTim, checkOutTime=checkOutTim, day=day,venueId=venueId,time=f"{starttime}-{endtime}")
 

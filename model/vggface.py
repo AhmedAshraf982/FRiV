@@ -10,7 +10,8 @@ from keras import backend as K
 
 
 CONF = 0.96
-EPSILON = 0.35
+EPSILON = 0.45
+JUMP = 8
 
 class FaceRecognition:
     def __init__(self) -> None:
@@ -70,7 +71,7 @@ class FaceRecognition:
 
 
     def run(self,originalName:str, fps:int, duration:float):
-        isFind = False
+        threshold = fps*60
         cosine_similarity = None
         self.new_trainX = list()
         sec = 1
@@ -78,6 +79,7 @@ class FaceRecognition:
         total_frames = duration * fps
         frames = 0
         frame_index = 1
+
         K.clear_session()
 
         capture = cv2.VideoCapture("data/start.mp4")
@@ -88,15 +90,19 @@ class FaceRecognition:
                 self.new_trainX.append(self.trainX[i])
         self.new_trainX = np.asarray(self.new_trainX)
         
+        if len(self.new_trainX) == 0:
+            return f"Faculty {originalName} Face Data is not exist in our database."
+
+        print(len(self.new_trainX), originalName)
 
         while frame_index<total_frames:
             capture.set(cv2.CAP_PROP_POS_FRAMES, frame_index)
             _, frames = capture.read()
             print(sec, min)
-            if sec % (60*fps) == 0:
+            if sec > threshold:
                 min = min + 1 
-                sec = 0
-            sec = sec + 8
+                sec = 1
+            sec = sec + JUMP
             if frames is None:
                 break
             _ = np.asarray(frames)
@@ -104,7 +110,7 @@ class FaceRecognition:
             boxes, _ = self.mtcnn.detect(frames)
             required_size=(224,224)
             
-            frame_index = frame_index + 8
+            frame_index = frame_index + JUMP
             if _[0] is not None:
                 for c, i in enumerate(_):
                     if i > CONF:
@@ -112,8 +118,9 @@ class FaceRecognition:
                         f = frames.crop((box[0], box[1], box[2], box[3]))
                         image = f.resize(required_size)
                         data = self.get_embeddings(np.asarray(image))
-                        for i, d in enumerate(self.new_trainX):
-                            cosine_similarity = self.findCosineDistance(data, d)
+                        for d in range(0,len(self.new_trainX)-1,2):
+                            cosine_similarity = self.findCosineDistance(data, self.new_trainX[d])
+                            
                             # name = trainy[i]
                             if cosine_similarity < EPSILON:
                                 print(cosine_similarity, originalName)
@@ -154,6 +161,7 @@ class FaceRecognition:
 
 
     def  last(self,originalName:str, fps:int):
+        threshold = (fps*60)
         cosine_similarity = None
         sec = 1
         min = 0
@@ -164,13 +172,13 @@ class FaceRecognition:
         frame_index = frames-100
 
         # 5 seconds error
-        while(frame_index!=0):
+        while frame_index!=0:
             capture.set(cv2.CAP_PROP_POS_FRAMES, int(frame_index))
             _, frames = capture.read()
-            if sec % (60*fps) == 0:
+            if sec > threshold:
                 min = min + 1 
-                sec = 0
-            sec = sec + 8
+                sec = 1
+            sec = sec + JUMP
             if frames is None:
                 break
             _ = np.asarray(frames)
@@ -178,7 +186,7 @@ class FaceRecognition:
             boxes, _ = self.mtcnn.detect(frames)
             required_size=(224,224)
            
-            frame_index = frame_index - 8
+            frame_index = frame_index - JUMP
             if _[0] is not None:
                 for c, i in enumerate(_):
                     if i > CONF:
@@ -186,8 +194,8 @@ class FaceRecognition:
                         f = frames.crop((box[0], box[1], box[2], box[3]))
                         image = f.resize(required_size)
                         data = self.get_embeddings(np.asarray(image))
-                        for i, d in enumerate(self.new_trainX):
-                            cosine_similarity = self.findCosineDistance(data, d)
+                        for d in range(0,len(self.new_trainX)-1,2):
+                            cosine_similarity = self.findCosineDistance(data, self.new_trainX[d])
                             # name = trainy[i]
                             if cosine_similarity < EPSILON:
                                 print(cosine_similarity, originalName)
