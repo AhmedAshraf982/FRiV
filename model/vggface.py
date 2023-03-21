@@ -11,13 +11,13 @@ from keras import backend as K
 
 CONF = 0.96
 EPSILON = 0.45
-JUMP = 8
+JUMP = 16
 
 class FaceRecognition:
     def __init__(self) -> None:
         # initialize and configure gpu and Model for face Detection
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-        self.mtcnn = MTCNN(margin=20, post_process=False, device=self.device)
+        self.mtcnn = MTCNN(margin=14, factor=0.6, keep_all=True, device=self.device)
         self.transform = A.Compose([
                     A.Blur(blur_limit=3),
                     A.HorizontalFlip(p=0.5),
@@ -93,8 +93,6 @@ class FaceRecognition:
         if len(self.new_trainX) == 0:
             return f"Faculty {originalName} Face Data is not exist in our database."
 
-        print(len(self.new_trainX), originalName)
-
         while frame_index<total_frames:
             capture.set(cv2.CAP_PROP_POS_FRAMES, frame_index)
             _, frames = capture.read()
@@ -107,12 +105,12 @@ class FaceRecognition:
                 break
             _ = np.asarray(frames)
             frames = Image.fromarray(cv2.cvtColor(frames, cv2.COLOR_BGR2RGB))
-            boxes, _ = self.mtcnn.detect(frames)
+            boxes, pred = self.mtcnn.detect(frames)
             required_size=(224,224)
             
             frame_index = frame_index + JUMP
-            if _[0] is not None:
-                for c, i in enumerate(_):
+            if pred[0] is not None:
+                for c, i in enumerate(pred):
                     if i > CONF:
                         box = boxes[c]
                         f = frames.crop((box[0], box[1], box[2], box[3]))
@@ -120,8 +118,6 @@ class FaceRecognition:
                         data = self.get_embeddings(np.asarray(image))
                         for d in range(0,len(self.new_trainX)-1,2):
                             cosine_similarity = self.findCosineDistance(data, self.new_trainX[d])
-                            
-                            # name = trainy[i]
                             if cosine_similarity < EPSILON:
                                 print(cosine_similarity, originalName)
                                 return [originalName, min]
@@ -183,12 +179,12 @@ class FaceRecognition:
                 break
             _ = np.asarray(frames)
             frames = Image.fromarray(cv2.cvtColor(frames, cv2.COLOR_BGR2RGB))
-            boxes, _ = self.mtcnn.detect(frames)
+            boxes, pred = self.mtcnn.detect(frames)
             required_size=(224,224)
            
             frame_index = frame_index - JUMP
-            if _[0] is not None:
-                for c, i in enumerate(_):
+            if pred[0] is not None:
+                for c, i in enumerate(pred):
                     if i > CONF:
                         box = boxes[c]
                         f = frames.crop((box[0], box[1], box[2], box[3]))
@@ -196,7 +192,6 @@ class FaceRecognition:
                         data = self.get_embeddings(np.asarray(image))
                         for d in range(0,len(self.new_trainX)-1,2):
                             cosine_similarity = self.findCosineDistance(data, self.new_trainX[d])
-                            # name = trainy[i]
                             if cosine_similarity < EPSILON:
                                 print(cosine_similarity, originalName)
                                 return [originalName, min]          

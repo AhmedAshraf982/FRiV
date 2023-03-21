@@ -7,9 +7,9 @@ def get_duration(filename):
 	return clip.duration, clip.fps
 
 def trim(path):
-	ffmpeg_extract_subclip(path, 0, 600, targetname="./data/start.mp4")
+	ffmpeg_extract_subclip(path, 0, 900, targetname="./data/start.mp4")
 	duration, fps = get_duration(path)
-	ffmpeg_extract_subclip(path, duration - 600, duration, targetname="./data/end.mp4")
+	ffmpeg_extract_subclip(path, duration - 300, duration, targetname="./data/end.mp4")
 	#os.remove(path);
 	return fps
 		

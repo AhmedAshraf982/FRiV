@@ -153,8 +153,7 @@ async def upload_File(db: _orm.Session=_fastapi.Depends(facultyController.get_db
 @app.post("/files")
 async def create_file(file: _fastapi.UploadFile = _fastapi.File(), starttime: str = _fastapi.Form(), venue: str = _fastapi.Form(), day: str = _fastapi.Form(), db: _orm.Session=_fastapi.Depends(facultyController.get_db)):
         try:
-            print(venue, day, starttime)
-            facultyName,endtime = facultyController.get_faculty_name(venue,starttime,day)
+            facultyName,endtime,facultyId,venueId = facultyController.get_faculty_name(venue,starttime,day)
 
             if facultyName is None:
                 return {"status": False,
@@ -168,9 +167,9 @@ async def create_file(file: _fastapi.UploadFile = _fastapi.File(), starttime: st
 
             fps = int(trim("./data/destination.mp4"))
             
-            facultyId = facultyController.get_faculty_id(facultyName)
+            # facultyId = facultyController.get_faculty_id(facultyName)
             
-            venueId = venueController.get_venue_id(db=db, name=venue)[0]
+            # venueId = venueController.get_venue_id(db=db, name=venue)[0]
 
             duration, _ = get_duration("./data/start.mp4")
             
@@ -209,7 +208,6 @@ async def create_file(file: _fastapi.UploadFile = _fastapi.File(), starttime: st
              
             checkTim = hr+":"+min
             
-
 
             end_time = time.strptime(endtime, '%H:%M')
             eth = end_time.tm_hour

@@ -67,12 +67,14 @@ def get_faculty_id(name:str):
 def get_faculty_name(venueName: str, startTime: str, Day: str):
     verifyName = None
     endTime = None
+    fId = None
+    vId = None
     day = dt.datetime.strptime(Day, "%d-%b-%Y")
     day = dt.datetime.strftime(day, "%A").upper()
     print(day)
     
     with _connect.engine.connect() as con:
-        rs = con.execute(f"SELECT f.Name, s.Day, sl.StartTime, sl.EndTime, v.VenueName\
+        rs = con.execute(f"SELECT f.Name, s.Day, sl.StartTime, sl.EndTime, v.VenueName, f.id, v.id\
                             from Schedule s JOIN Faculty f \
                             ON s.facultyId = f.id\
                             JOIN slots sl\
@@ -83,8 +85,10 @@ def get_faculty_name(venueName: str, startTime: str, Day: str):
         for row in rs:
             verifyName = row[0]
             endTime = row[3]
+            fId = row[5]
+            vId = row[6]
 
-    return [verifyName,endTime]
+    return [verifyName,endTime, fId, vId]
 
     
 def get_faculty_info(date: str):
