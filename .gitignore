@@ -1,6 +1,4 @@
 data/
-VGGFACEMODELDATA/
-DataBase/*.db
 DataBase/*.sqbpro
 FaceNetModelData/
 Old/
