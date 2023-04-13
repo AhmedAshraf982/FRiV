@@ -1,16 +1,24 @@
-FROM python:3.8.16
-RUN python -m pip install --upgrade pip
+FROM continuumio/miniconda3
 
-RUN pip install virtualenv
-ENV VIRTUAL_ENV=/venv
-RUN virtualenv venv -p python3
-ENV PATH="VIRTUAL_ENV/bin:$PATH"
+
+# Make RUN commands use `bash --login`:
+SHELL ["/bin/bash", "--login", "-c"]
+
+# Create the environment
+COPY env.yml .
+RUN conda env create -f env.yml
+
+# Initialize conda in bash config fiiles:
+RUN conda init bash
+
+# Activate the environment, and make sure it's activated:
+RUN echo "conda activate myenv-dev" > ~/.bashrc
 
 WORKDIR /server
 ADD . /server
 
 # Install dependencies
-RUN pip install -r requirement.txt
+RUN pip install -r reqs.txt
 # Expose port 
 ENV PORT 8080
 
