@@ -59,6 +59,15 @@ class FaceRecognition:
         return yhat[0]
     
 
+    def checkUser(self, user: str):
+        uniqueData = np.unique(self.trainy)
+        isFind = False
+        for i in range(0, len(uniqueData)):
+            if uniqueData[i] == user:
+                isFind = True
+        
+        return isFind
+               
 
 
     def findCosineDistance(self,source_representation, test_representation):

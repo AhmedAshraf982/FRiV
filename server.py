@@ -95,7 +95,8 @@ def addTimetable(file: _fastapi.UploadFile = _fastapi.File(),db: _orm.Session=_f
 def addFacultyData(db: _orm.Session, firstName: str,lastName:str,email: str, path:str):
     
     user = facultyController.findfacultyByFullName(db=db, Name=firstName, Email=email)
-    if user:   
+    userInTrainData = faceRecognitionModel.checkUser(user=firstName)
+    if user and userInTrainData:   
         return { 
             "status" : False,
             "message":"Faculty is already available"
@@ -104,8 +105,9 @@ def addFacultyData(db: _orm.Session, firstName: str,lastName:str,email: str, pat
     res =  faceRecognitionModel.train(path, Name=firstName)
     os.remove(path)
     
-    if len(res) == 1:
+    if len(res) == 1 and not user:
         facultyController.addFaculty(db=db, firstName=firstName, fullName=firstName+" "+lastName, email=email)
+    elif len(res) == 1 and user:
         return {
             "status": True,
             "message": "Faculty added successfully"
